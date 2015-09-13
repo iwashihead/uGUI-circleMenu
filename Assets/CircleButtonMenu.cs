@@ -9,12 +9,17 @@ using System.Collections.Generic;
 /// </summary>
 public class CircleButtonMenu : MonoBehaviour, IBeginDragHandler, IDragHandler, IEndDragHandler {
 
-	[SerializeField] private int _index;
+	private int _innerNo;
 	public int SelectedIndex {
-		get { return _index; }
+		get {
+			if (ItemCount == 0) return 0;
+			int ret = (ItemCount - _innerNo) % ItemCount;
+			return ret;
+		}
 		set {
-			_index = value;
-			Focus(_index);
+			int cnt = ItemCount;
+			if (cnt == 0) return;
+			_innerNo = (_innerNo + cnt - value) % cnt;
 		}
 	}
 
@@ -62,9 +67,9 @@ public class CircleButtonMenu : MonoBehaviour, IBeginDragHandler, IDragHandler, 
 	public GameObject SelectedItem {
 		get {
 			if (_items==null) return null;
-			int id = (ItemCount - _index) % ItemCount;
-			if (id < 0 || id >= ItemCount) return null;
-			return Items[id];
+			int index = SelectedIndex;
+			if (index < 0 || index >= ItemCount) return null;
+			return Items[index];
 		}
 	}
 
@@ -81,7 +86,7 @@ public class CircleButtonMenu : MonoBehaviour, IBeginDragHandler, IDragHandler, 
 	/// <summary>
 	/// ドラッグ完了してから目標位置へ移動する時のアニメーションの速さ.(0..1)
 	/// </summary>
-	[Range(0f, 1f)] public float springAmount = 0.3f;
+	[Range(0.01f, 1f)] public float springAmount = 0.3f;
 
 	/// <summary>
 	/// 選択中アイテムの拡大率.
@@ -101,6 +106,16 @@ public class CircleButtonMenu : MonoBehaviour, IBeginDragHandler, IDragHandler, 
 	private bool isDraging;
 
 
+	[ContextMenu("Next")]
+	public void Next()
+	{
+		_innerNo = (_innerNo + ItemCount - 1) % ItemCount;
+	}
+	[ContextMenu("Prev")]
+	public void Prev()
+	{
+		_innerNo = (_innerNo + 1) % ItemCount;
+	}
 
 	[ContextMenu("Focus")]
 	public void Focus() {
@@ -114,7 +129,7 @@ public class CircleButtonMenu : MonoBehaviour, IBeginDragHandler, IDragHandler, 
 		if (index >= ItemCount) { index %= ItemCount; }
 		while (index < 0) { index += ItemCount; }
 
-		_index = index;
+		SelectedIndex = index;
 
 		float angle = 0f;
 		if (ItemCount != 0)
@@ -229,11 +244,16 @@ public class CircleButtonMenu : MonoBehaviour, IBeginDragHandler, IDragHandler, 
 
 		// 現在角度と目標角度
 		float currentAngle = _angle;
-		float targetAngle = 360f / ItemCount * _index;
+		float targetAngle = 360f / ItemCount * _innerNo;
 		if (targetAngle >= 360f) targetAngle -= 360f;
+		if (targetAngle < 0f) targetAngle += 360f;
 
 		if (currentAngle == targetAngle || targetAngle - currentAngle == 360f) return;// 同じ角度なら何もしない
 
+		// 0度->320度などの遷移を360度->320度として扱う
+		if (currentAngle < 90f && targetAngle > 270f) {
+			currentAngle += 360f;
+		}
 		float diff = Mathf.Abs(targetAngle - currentAngle);
 
 		if (diff < MinDiffAngle) {
@@ -342,7 +362,7 @@ public class CircleButtonMenu : MonoBehaviour, IBeginDragHandler, IDragHandler, 
 		int indexCnt = (int)(_angle / region);
 		int nearIndex = indexCnt / 2 + ((indexCnt % 2)==0 ? 0 : 1);
 		nearIndex = nearIndex % ItemCount;
-		_index = nearIndex;
+		_innerNo = nearIndex;
 
 //		Debug.Log(string.Format("OnEndDrag - Base:{0}\n Start:{1}\n End:{2}\n SRot:{3}\n ERot:{4}\n DiffAngle:{5}", basePos, dragStart, dragEnd, startAndle * Mathf.Rad2Deg, endAngle * Mathf.Rad2Deg, DiffAngleDeg));
 	}
